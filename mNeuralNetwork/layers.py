@@ -1,9 +1,26 @@
 import numpy as np
 import torch
 from torch import nn
+from abc import ABC, abstractmethod
 
 
-class Linearlayer:
+class Layer(ABC):
+    @abstractmethod
+    def forward(self, x):
+        pass
+
+    @abstractmethod
+    def backward(self, dout):
+        pass
+
+
+class ParamsLayer(Layer):
+    @abstractmethod
+    def grad_dn(self, step):
+        pass
+
+
+class Linearlayer(ParamsLayer):
     def __init__(self, size_in, size_out, reg=1e-4):
         rng = np.random.default_rng()
         self.W = rng.normal(0, np.sqrt(2 / size_in), size=(size_out, size_in))
@@ -24,12 +41,12 @@ class Linearlayer:
         dx = np.dot(self.W.T, dout)
         return dx
 
-    def grad_dn(self, alpha):
-        self.W = (1 + self.reg) * self.W - alpha * self.dW
-        self.b = self.b - alpha * self.db
+    def grad_dn(self, step):
+        self.W = (1 + self.reg) * self.W - step * self.dW
+        self.b = self.b - step * self.db
 
 
-class ReLUlayer:
+class ReLUlayer(Layer):
     def __init__(self):
         self.mask = None
 
@@ -43,7 +60,7 @@ class ReLUlayer:
         return dout
 
 
-class Logisticlayer:
+class Logisticlayer(Layer):
     def __init__(self):
         self.out = None
 
