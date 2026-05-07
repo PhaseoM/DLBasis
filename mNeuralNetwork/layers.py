@@ -1,34 +1,40 @@
 import numpy as np
-import torch
 from torch import nn
 from abc import ABC, abstractmethod
+from .config import Config
 
 
 class Layer(ABC):
+    def __init__(self):
+        self.cfg = Config()
+
     @abstractmethod
-    def forward(self, x):
+    def forward(self, *x):
         pass
 
     @abstractmethod
-    def backward(self, dout):
+    def backward(self, *dout):
         pass
+
+    def update_hyparams(self, cfg):
+        self.cfg = cfg
 
 
 class ParamsLayer(Layer):
     @abstractmethod
-    def grad_dn(self, step):
+    def grad_dn(self, *step):
         pass
 
 
 class Linearlayer(ParamsLayer):
-    def __init__(self, size_in, size_out, reg=1e-4):
+    def __init__(self, size_in, size_out):
+        super().__init__()
         rng = np.random.default_rng()
         self.W = rng.normal(0, np.sqrt(2 / size_in), size=(size_out, size_in))
         self.b = np.zeros(size_out)
         self.x = None
         self.dW = None
         self.db = None
-        self.reg = reg
 
     def forward(self, x):
         self.x = x
@@ -41,13 +47,14 @@ class Linearlayer(ParamsLayer):
         dx = np.dot(self.W.T, dout)
         return dx
 
-    def grad_dn(self, step):
-        self.W = (1 + self.reg) * self.W - step * self.dW
-        self.b = self.b - step * self.db
+    def grad_dn(self):
+        self.W = (1 + self.cfg.lamb) * self.W - self.cfg.step * self.dW
+        self.b = self.b - self.cfg.step * self.db
 
 
 class ReLUlayer(Layer):
     def __init__(self):
+        super().__init__()
         self.mask = None
 
     def forward(self, x):
@@ -62,6 +69,7 @@ class ReLUlayer(Layer):
 
 class Logisticlayer(Layer):
     def __init__(self):
+        super().__init__()
         self.out = None
 
     def forward(self, x):
@@ -72,3 +80,34 @@ class Logisticlayer(Layer):
     def backward(self, dout):
         dx = self.out * (1 - self.out) * dout
         return dx
+
+
+class MSELosslayer(Layer):
+    def __init__(self):
+        super().__init__()
+        self.out = None
+        self.l2_regular = 1e-12
+
+    def forward(self, pred, y):
+        loss = 0.5 * np.mean((pred - y) ** 2) + self.cfg.lamb * self.l2_regular
+        self.out = loss
+        return loss
+
+    def backward(self):
+        pass
+
+
+class CrossEntropyLosslayer(Layer):
+    def __init__(self):
+        super().__init__()
+        self.out = None
+        self.l2_regular = self.cfg.eps
+
+    def forward(self, pred, y):
+        pred = np.clip(pred, 1e-12, 1.0)
+        loss = -np.mean(y * np.log(pred)) + self.cfg.lamb * self.l2_regular
+        self.out = loss
+        return loss
+
+    def backward(self):
+        pass
