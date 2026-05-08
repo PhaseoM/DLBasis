@@ -26,11 +26,25 @@ class ParamsLayer(Layer):
         pass
 
 
+class LossLayer(Layer):
+    def __init__(self):
+        super().__init__()
+        self.out = None
+        self.l2_regular = 0.0
+
+    def regular_for_W(self, layers):
+        self.l2_regular = 0.0
+        for layer in layers.values():
+            if isinstance(layer, ParamsLayer):
+                self.l2_regular += np.sum(layer.W**2)
+
+
 class Linearlayer(ParamsLayer):
     def __init__(self, size_in, size_out):
         super().__init__()
         rng = np.random.default_rng()
-        self.W = rng.normal(0, np.sqrt(2 / size_in), size=(size_out, size_in))
+        # self.W = rng.normal(0, np.sqrt(2 / size_in), size=(size_out, size_in))
+        self.W = rng.normal(0, np.sqrt(2 / size_in), size=(size_in, size_out))
         self.b = np.zeros(size_out)
         self.x = None
         self.dW = None
@@ -38,18 +52,29 @@ class Linearlayer(ParamsLayer):
 
     def forward(self, x):
         self.x = x
-        x = np.dot(self.W, x) + self.b
+        # print(f"fb:   x:{x.shape},W:{self.W.shape},b:{self.b.shape}")
+        # x = np.dot(self.W, x) + self.b
+        x = np.dot(x, self.W) + self.b
+        # print(
+        #     f"fe   x:{self.x.shape},W:{self.W.shape},Wx:{np.dot(self.x,self.W).shape},b:{self.b.shape},out:{x.shape}"
+        # )
         return x
 
     def backward(self, dout):
-        self.dW = np.dot(dout, self.x.T)
-        self.db = dout
-        dx = np.dot(self.W.T, dout)
+        # print(f"backward:   dout:{dout.shape}")
+        # self.dW = np.dot(dout, self.x.T)
+        self.dW = np.dot(self.x.T, dout)
+        self.db = np.sum(dout, axis=0)
+        # dx = np.dot(self.W.T, dout)
+        dx = np.dot(dout, self.W.T)
+        # print(self.db.shape)
         return dx
 
     def grad_dn(self):
-        self.W = (1 + self.cfg.lamb) * self.W - self.cfg.step * self.dW
-        self.b = self.b - self.cfg.step * self.db
+        # print(f"before:  W:{self.W.shape},b:{self.b.shape},db={self.db.shape}")
+        self.W -= self.cfg.step * (self.dW + self.cfg.lamb * self.W)
+        self.b -= self.cfg.step * self.db
+        # print(f"after:  W:{self.W.shape},b:{self.b.shape}")
 
 
 class ReLUlayer(Layer):
@@ -59,8 +84,9 @@ class ReLUlayer(Layer):
 
     def forward(self, x):
         self.mask = x <= 0
-        x[self.mask]
-        return x
+        out = x.copy()
+        out[self.mask] = 0
+        return out
 
     def backward(self, dout):
         dout[self.mask] = 0
@@ -82,32 +108,54 @@ class Logisticlayer(Layer):
         return dx
 
 
-class MSELosslayer(Layer):
+class Tanhlayer(Layer):
     def __init__(self):
         super().__init__()
         self.out = None
-        self.l2_regular = 1e-12
+
+    def forward(self, x):
+        # x = 2 / (1 + np.exp(-2 * x)) - 1
+        x = np.tanh(x)
+        self.out = x
+        return x
+
+    def backward(self, dout):
+        dx = (1 - self.out**2) * dout
+        return dx
+
+
+class MSELosslayer(LossLayer):
+    def __init__(self):
+        super().__init__()
+        self.delta_y = None
 
     def forward(self, pred, y):
-        loss = 0.5 * np.mean((pred - y) ** 2) + self.cfg.lamb * self.l2_regular
+        self.delta_y = pred - y
+        loss = 0.5 * np.mean((pred - y) ** 2) + 0.5 * self.cfg.lamb * self.l2_regular
         self.out = loss
         return loss
 
     def backward(self):
-        pass
+        dx = self.delta_y / self.delta_y.shape[0]
+        return dx
 
 
-class CrossEntropyLosslayer(Layer):
+class CrossEntropyLosslayer(LossLayer):
     def __init__(self):
         super().__init__()
-        self.out = None
-        self.l2_regular = self.cfg.eps
+        self.frac_y = None
 
     def forward(self, pred, y):
         pred = np.clip(pred, 1e-12, 1.0)
-        loss = -np.mean(y * np.log(pred)) + self.cfg.lamb * self.l2_regular
+        self.frac_y = y / pred
+        loss = -np.mean(y * np.log(pred)) + 0.5 * self.cfg.lamb * self.l2_regular
         self.out = loss
+        # print(
+        #     f"BCE fw: pred:{pred.shape},loss:{loss.shape},y:{y.shape},frac_y:{self.frac_y.shape}"
+        # )
         return loss
 
     def backward(self):
-        pass
+        dx = -self.frac_y / self.frac_y.shape[0]
+        # print(f"BCE bw: dx:{dx.shape},frac_y:{self.frac_y.shape}")
+        return dx
