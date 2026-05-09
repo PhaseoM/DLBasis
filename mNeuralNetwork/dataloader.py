@@ -10,6 +10,9 @@ class DataLoader:
         self.n = len(X)
         self.size = int(np.ceil(self.n / batchsize))
 
+    def __len__(self):
+        return self.size
+
     def __iter__(self):
         self.indices = np.arange(self.n)
         if self.shuffle:

@@ -54,8 +54,8 @@ class bpNeuralNetwork:
             self.model.grad_dn()
             loss_arr.append(loss)
             if batch % 5 == 0 or batch == datasize - 1:
-                current = batch * batch_size_cls
-                print(f"loss:{loss:>7f}[{current:>5d}/{datasize*batch_size_cls:>5d}]")
+                current = batch
+                print(f"loss:{loss:>7f}[{current:>5d}/{datasize:>5d}]")
         self.loss_history = np.array(loss_arr)
 
     def test(self, dataldr):

@@ -45,6 +45,7 @@ class Linearlayer(ParamsLayer):
         rng = np.random.default_rng()
         # self.W = rng.normal(0, np.sqrt(2 / size_in), size=(size_out, size_in))
         self.W = rng.normal(0, np.sqrt(2 / size_in), size=(size_in, size_out))
+        # self.W = 0.01 * np.random.randn(size_in, size_out)
         self.b = np.zeros(size_out)
         self.x = None
         self.dW = None
@@ -53,26 +54,22 @@ class Linearlayer(ParamsLayer):
     def forward(self, x):
         self.x = x
         # print(f"fb:   x:{x.shape},W:{self.W.shape},b:{self.b.shape}")
-        # x = np.dot(self.W, x) + self.b
-        x = np.dot(x, self.W) + self.b
-        # print(
-        #     f"fe   x:{self.x.shape},W:{self.W.shape},Wx:{np.dot(self.x,self.W).shape},b:{self.b.shape},out:{x.shape}"
-        # )
-        return x
+        out = np.dot(x, self.W) + self.b
+        # print(f"fe   Wx:{np.dot(self.x,self.W).shape},out:{x.shape}")
+        return out
 
     def backward(self, dout):
         # print(f"backward:   dout:{dout.shape}")
-        # self.dW = np.dot(dout, self.x.T)
+        dx = np.dot(dout, self.W.T)
         self.dW = np.dot(self.x.T, dout)
         self.db = np.sum(dout, axis=0)
-        # dx = np.dot(self.W.T, dout)
-        dx = np.dot(dout, self.W.T)
         # print(self.db.shape)
         return dx
 
     def grad_dn(self):
         # print(f"before:  W:{self.W.shape},b:{self.b.shape},db={self.db.shape}")
-        self.W -= self.cfg.step * (self.dW + self.cfg.lamb * self.W)
+        # self.W -= self.cfg.step * (self.dW + self.cfg.lamb * self.W)
+        self.W -= self.cfg.step * self.dW
         self.b -= self.cfg.step * self.db
         # print(f"after:  W:{self.W.shape},b:{self.b.shape}")
 
@@ -131,7 +128,8 @@ class MSELosslayer(LossLayer):
 
     def forward(self, pred, y):
         self.delta_y = pred - y
-        loss = 0.5 * np.mean((pred - y) ** 2) + 0.5 * self.cfg.lamb * self.l2_regular
+        # loss = 0.5 * np.mean((pred - y) ** 2) + 0.5 * self.cfg.lamb * self.l2_regular
+        loss = 0.5 * np.mean((pred - y) ** 2)
         self.out = loss
         return loss
 

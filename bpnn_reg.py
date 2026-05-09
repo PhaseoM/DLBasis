@@ -6,10 +6,11 @@ from mNeuralNetwork.evaluators import *
 from mNeuralNetwork.dataloader import DataLoader
 from mNeuralNetwork.config import Config
 from collections import OrderedDict
+from tqdm import tqdm
 
-batch_size_reg = 16  # 50
+batch_size_reg = 4  # 50
 input_layer_size = 1
-hide_layer_size = 256  # 32
+hide_layer_size = 4  # 32
 output_layer_size = 1
 
 traindata_reg = "./data/diabetes/regression/sinc_train"
@@ -26,10 +27,10 @@ regression_model = mnn.nnModel(
             # ("relu_2", ReLUlayer()),
             # ("sigmoid_2", Logisticlayer()),
             ("tanh_2", Tanhlayer()),
-            ("linear_3", Linearlayer(hide_layer_size, hide_layer_size)),
+            # ("linear_3", Linearlayer(hide_layer_size, hide_layer_size)),
             # ("relu_2", ReLUlayer()),
             # ("sigmoid_3", Logisticlayer()),
-            ("tanh_3", Tanhlayer()),
+            # ("tanh_3", Tanhlayer()),
             ("linear_end", Linearlayer(hide_layer_size, output_layer_size)),
             # ("sigmoid_end", Logisticlayer()),
             # ("tanh_end", Tanhlayer()),
@@ -49,10 +50,13 @@ class bpNeuralNetwork:
 
     def train(self, dataldr):
         loss_arr = []
-        datasize = dataldr.size
+        datasize = len(dataldr)
+        # for batch, (X, y) in enumerate(
+        #     tqdm(dataldr, desc=f"Training", unit="batch", ncols=80)
+        # ):
         for batch, (X, y) in enumerate(dataldr):
-            # if batch == 5:
-            #     break
+            if batch == 3:
+                break
             X = X.reshape(-1, 1)
             y = y.reshape(-1, 1)
             pred = self.model.forward(X)
@@ -65,8 +69,8 @@ class bpNeuralNetwork:
 
             loss_arr.append(loss)
             if batch % 5 == 0 or batch == datasize - 1:
-                current = batch * batch_size_reg
-                print(f"loss:{loss:>7f}[{current:>5d}/{batch_size_reg*datasize:>5d}]")
+                current = batch
+                print(f"loss:{loss:>7f}[{current:>5d}/{datasize:>5d}]")
         self.loss_history = np.array(loss_arr)
 
     def test(self, dataldr):

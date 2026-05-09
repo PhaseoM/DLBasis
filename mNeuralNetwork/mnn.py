@@ -9,17 +9,17 @@ class nnModel:
         self.hyparam_distb(cfg)
 
     def forward(self, X):
-        for layer in self.layers.values():
+        for name, layer in self.layers.items():
             X = layer.forward(X)
         return X
 
     def backward(self, dout):
-        for layer in reversed(self.layers.values()):
+        for name, layer in reversed(self.layers.items()):
             dout = layer.backward(dout)
         return dout
 
     def grad_dn(self):
-        for layer in self.layers.values():
+        for name, layer in self.layers.items():
             if isinstance(layer, ParamsLayer):
                 layer.grad_dn()
 
