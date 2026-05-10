@@ -14,9 +14,11 @@ class DataLoader:
         return self.size
 
     def __iter__(self):
+        rng = np.random.default_rng()
+
         self.indices = np.arange(self.n)
         if self.shuffle:
-            np.random.shuffle(self.indices)
+            rng.shuffle(self.indices)
         self.i = 0
         return self
 

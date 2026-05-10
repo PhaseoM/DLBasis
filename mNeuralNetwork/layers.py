@@ -44,34 +44,32 @@ class Linearlayer(ParamsLayer):
         super().__init__()
         rng = np.random.default_rng()
         # self.W = rng.normal(0, np.sqrt(2 / size_in), size=(size_out, size_in))
-        self.W = rng.normal(0, np.sqrt(2 / size_in), size=(size_in, size_out))
-        # self.W = 0.01 * np.random.randn(size_in, size_out)
+        # self.W = 0.01 * rng.normal(0, np.sqrt(2 / size_in), size=(size_in, size_out))
+        self.W = 0.1 * np.random.randn(size_in, size_out)
         self.b = np.zeros(size_out)
         self.x = None
         self.dW = None
         self.db = None
 
     def forward(self, x):
+        # print(f"x:{x}\nW:{self.W}\nb:{self.b}")
         self.x = x
-        # print(f"fb:   x:{x.shape},W:{self.W.shape},b:{self.b.shape}")
         out = np.dot(x, self.W) + self.b
-        # print(f"fe   Wx:{np.dot(self.x,self.W).shape},out:{x.shape}")
+        # print(f"Wx:{np.dot(x, self.W)},out:{out}")
         return out
 
     def backward(self, dout):
-        # print(f"backward:   dout:{dout.shape}")
         dx = np.dot(dout, self.W.T)
         self.dW = np.dot(self.x.T, dout)
         self.db = np.sum(dout, axis=0)
-        # print(self.db.shape)
         return dx
 
     def grad_dn(self):
-        # print(f"before:  W:{self.W.shape},b:{self.b.shape},db={self.db.shape}")
-        # self.W -= self.cfg.step * (self.dW + self.cfg.lamb * self.W)
-        self.W -= self.cfg.step * self.dW
+        if self.cfg.is_regular:
+            self.W -= self.cfg.step * (self.dW + self.cfg.lamb * self.W)
+        else:
+            self.W -= self.cfg.step * self.dW
         self.b -= self.cfg.step * self.db
-        # print(f"after:  W:{self.W.shape},b:{self.b.shape}")
 
 
 class ReLUlayer(Layer):
@@ -112,9 +110,8 @@ class Tanhlayer(Layer):
 
     def forward(self, x):
         # x = 2 / (1 + np.exp(-2 * x)) - 1
-        x = np.tanh(x)
-        self.out = x
-        return x
+        self.out = np.tanh(x)
+        return self.out
 
     def backward(self, dout):
         dx = (1 - self.out**2) * dout
@@ -127,9 +124,15 @@ class MSELosslayer(LossLayer):
         self.delta_y = None
 
     def forward(self, pred, y):
+        # print(pred)
         self.delta_y = pred - y
-        # loss = 0.5 * np.mean((pred - y) ** 2) + 0.5 * self.cfg.lamb * self.l2_regular
-        loss = 0.5 * np.mean((pred - y) ** 2)
+        if self.cfg.is_regular:
+            loss = 0.5 * (
+                np.sum((pred - y) ** 2) / pred.shape[0]
+                + self.cfg.lamb * self.l2_regular
+            )
+        else:
+            loss = 0.5 * np.sum((pred - y) ** 2) / pred.shape[0]
         self.out = loss
         return loss
 
@@ -146,7 +149,10 @@ class CrossEntropyLosslayer(LossLayer):
     def forward(self, pred, y):
         pred = np.clip(pred, 1e-12, 1.0)
         self.frac_y = y / pred
-        loss = -np.mean(y * np.log(pred)) + 0.5 * self.cfg.lamb * self.l2_regular
+        if self.cfg.is_regular:
+            loss = -np.mean(y * np.log(pred)) + 0.5 * self.cfg.lamb * self.l2_regular
+        else:
+            loss = -np.mean(y * np.log(pred))
         self.out = loss
         # print(
         #     f"BCE fw: pred:{pred.shape},loss:{loss.shape},y:{y.shape},frac_y:{self.frac_y.shape}"

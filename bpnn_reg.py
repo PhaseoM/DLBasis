@@ -3,14 +3,15 @@ import matplotlib.pyplot as plt
 from mNeuralNetwork import mnn
 from mNeuralNetwork.layers import *
 from mNeuralNetwork.evaluators import *
-from mNeuralNetwork.dataloader import DataLoader
 from mNeuralNetwork.config import Config
+from utils.dataplib import DataLoader
 from collections import OrderedDict
 from tqdm import tqdm
 
-batch_size_reg = 4  # 50
+epochs_reg = 1200
+batch_size_reg = 32
 input_layer_size = 1
-hide_layer_size = 4  # 32
+hide_layer_size = 80
 output_layer_size = 1
 
 traindata_reg = "./data/diabetes/regression/sinc_train"
@@ -27,50 +28,57 @@ regression_model = mnn.nnModel(
             # ("relu_2", ReLUlayer()),
             # ("sigmoid_2", Logisticlayer()),
             ("tanh_2", Tanhlayer()),
-            # ("linear_3", Linearlayer(hide_layer_size, hide_layer_size)),
-            # ("relu_2", ReLUlayer()),
+            ("linear_3", Linearlayer(hide_layer_size, hide_layer_size)),
+            # ("relu_3", ReLUlayer()),
             # ("sigmoid_3", Logisticlayer()),
-            # ("tanh_3", Tanhlayer()),
+            ("tanh_3", Tanhlayer()),
             ("linear_end", Linearlayer(hide_layer_size, output_layer_size)),
             # ("sigmoid_end", Logisticlayer()),
-            # ("tanh_end", Tanhlayer()),
+            ("tanh_end", Tanhlayer()),
         ]
     ),
-    cfg=Config(batchsize=batch_size_reg, step=1e-4),
+    loss_layer=MSELosslayer(),
+    cfg=Config(batchsize=batch_size_reg, step=1e-1, is_regular=True),
 )
 
 
 class bpNeuralNetwork:
-    def __init__(self, model, loss_layer):
+    def __init__(self, model):
         self.model = model
-        self.loss_layer = loss_layer
         self.pred_history = None
         self.loss_history = None
         self.out = None
 
-    def train(self, dataldr):
+    def train(self, dataldr, epochs=600):
         loss_arr = []
         datasize = len(dataldr)
-        # for batch, (X, y) in enumerate(
-        #     tqdm(dataldr, desc=f"Training", unit="batch", ncols=80)
-        # ):
-        for batch, (X, y) in enumerate(dataldr):
-            if batch == 3:
-                break
-            X = X.reshape(-1, 1)
-            y = y.reshape(-1, 1)
-            pred = self.model.forward(X)
+        for epoch in range(epochs):
+            if epoch == 300:
+                self.model.cfg.step = 1e-3
+                self.model.hyparam_distb()
+            if epoch == 600:
+                self.model.cfg.step = 1e-4
+                self.model.hyparam_distb()
+            epoch_loss = 0
+            for batch, (X, y) in enumerate(dataldr):
+                # print(f"Training epoch:{batch}")
+                # if batch == 2:
+                #     return
+                X = X.reshape(-1, 1)
+                y = y.reshape(-1, 1)
+                pred = self.model.forward(X)
 
-            self.loss_layer.regular_for_W(self.model.layers)
-            loss = self.loss_layer.forward(pred, y)
-            dout = self.loss_layer.backward()
-            self.model.backward(dout)
-            self.model.grad_dn()
+                loss = self.model.loss_forward(pred, y)
+                self.model.backward(loss)
+                self.model.grad_dn()
 
-            loss_arr.append(loss)
-            if batch % 5 == 0 or batch == datasize - 1:
-                current = batch
-                print(f"loss:{loss:>7f}[{current:>5d}/{datasize:>5d}]")
+                epoch_loss += loss
+            loss_arr.append(epoch_loss / datasize)
+            # if batch % 5 == 0 or batch == datasize - 1:
+            #     current = batch
+            #     print(f"loss:{loss:>7f}[{current:>5d}/{datasize:>5d}]")
+            print(f"loss:{epoch_loss / datasize:>7f}[{epoch:>5d}/{epochs:>5d}]")
+
         self.loss_history = np.array(loss_arr)
 
     def test(self, dataldr):
@@ -78,18 +86,17 @@ class bpNeuralNetwork:
         for X, y in dataldr:
             pred = self.model.forward(X)
             pred_arr.append(pred)
-            # print(pred.shape)
 
         self.pred_history = np.array(pred_arr)
 
     def loss_eval(self):
-        indices = np.array(list(range(0, len(self.loss_history)))) + 1
+        indices = np.array(list(range(0, len(self.loss_history))))
         plt.plot(indices, self.loss_history)
-        plt.xlabel("batch")
+        plt.xlabel("epoch")
         plt.ylabel("loss")
         plt.title("regression loss_fn")
         # plt.legend()
-        # plt.show()
+        plt.show()
 
 
 def regsdata_process(filepath):
@@ -105,15 +112,17 @@ def execute_reg():
     datatrain = DataLoader(X, y, batch_size_reg, True)
     y1, X1 = regsdata_process(testdata_reg)
     datatest = DataLoader(X1, y1)
-    bpnn = bpNeuralNetwork(model=regression_model, loss_layer=MSELosslayer())
-    bpnn.train(dataldr=datatrain)
+    bpnn = bpNeuralNetwork(model=regression_model)
+    bpnn.train(dataldr=datatrain, epochs=epochs_reg)
+    # return
     bpnn.test(dataldr=datatest)
 
-    plt.scatter(X, y)
-    plt.scatter(X1, y1)
-    # print(X1.shape)
-    # print(bpnn.pred_history.shape)
-    plt.plot(X1, bpnn.pred_history, c="r")
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.scatter(X, y, label="train")
+    plt.scatter(X1, y1, label="test")
+    plt.plot(X1, bpnn.pred_history, c="r", label="pred")
+    plt.legend()
     plt.show()
 
     bpnn.loss_eval()

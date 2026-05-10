@@ -3,12 +3,12 @@ import matplotlib.pyplot as plt
 from mNeuralNetwork import mnn
 from mNeuralNetwork.layers import *
 from mNeuralNetwork.evaluators import *
-from mNeuralNetwork.dataloader import DataLoader
+from utils.dataplib import DataLoader
 from collections import OrderedDict
 
-batch_size_cls = 16  # 64
+batch_size_cls = 2  # 64
 input_layer_size = 8
-hide_layer_size = 256  # 64
+hide_layer_size = 2  # 64
 output_layer_size = 1
 
 traindata_cls = "./data/diabetes/classification/diabetes_train"
@@ -19,20 +19,24 @@ classfication_model = mnn.nnModel(
         [
             ("linear_1", Linearlayer(input_layer_size, hide_layer_size)),
             ("relu_1", ReLUlayer()),
+            # ("tanh_1", Tanhlayer()),
             ("linear_2", Linearlayer(hide_layer_size, hide_layer_size)),
             ("relu_2", ReLUlayer()),
+            # ("tanh_2", Tanhlayer()),
             ("linear_end", Linearlayer(hide_layer_size, output_layer_size)),
             ("sigmoid_end", Logisticlayer()),
+            # ("tanh_end", Tanhlayer()),
         ]
     ),
-    cfg=Config(batchsize=batch_size_cls, step=1e-4),
+    loss_layer=MSELosslayer(),
+    # loss_layer=CrossEntropyLosslayer(),
+    cfg=Config(batchsize=batch_size_cls, step=1e-2),
 )
 
 
 class bpNeuralNetwork:
-    def __init__(self, model, loss_layer):
+    def __init__(self, model):
         self.model = model
-        self.loss_layer = loss_layer
         self.pred_history = []
         self.out = None
         self.TP = 0
@@ -40,22 +44,28 @@ class bpNeuralNetwork:
         self.TN = 0
         self.FN = 0
 
-    def train(self, dataldr):
+    def train(self, dataldr, epochs=200):
         loss_arr = []
         datasize = dataldr.size
-        for batch, (X, y) in enumerate(dataldr):
-            y = y.reshape(-1, 1)
-            pred = self.model.forward(X)
+        for epoch in range(epochs):
+            epoch_loss = 0
+            for batch, (X, y) in enumerate(dataldr):
+                # if batch == 3:
+                #     return
+                y = y.reshape(-1, 1)
+                pred = self.model.forward(X)
 
-            self.loss_layer.regular_for_W(self.model.layers)
-            loss = self.loss_layer.forward(pred, y)
-            dout = self.loss_layer.backward()
-            self.model.backward(dout)
-            self.model.grad_dn()
-            loss_arr.append(loss)
-            if batch % 5 == 0 or batch == datasize - 1:
-                current = batch
-                print(f"loss:{loss:>7f}[{current:>5d}/{datasize:>5d}]")
+                loss = self.model.loss_forward(pred, y)
+                self.model.backward(loss)
+                self.model.grad_dn()
+
+                epoch_loss += loss
+            loss_arr.append(epoch_loss / datasize)
+            # if batch % 5 == 0 or batch == datasize - 1:
+            #     current = batch
+            #     print(f"loss:{loss:>7f}[{current:>5d}/{datasize:>5d}]")
+            print(f"loss:{epoch_loss / datasize:>7f}[{epoch:>5d}/{epochs:>5d}]")
+            # return
         self.loss_history = np.array(loss_arr)
 
     def test(self, dataldr):
@@ -65,6 +75,7 @@ class bpNeuralNetwork:
             y = y.reshape(-1, 1)
             y_hat = self.model.forward(X)
             self.pred_history.append((y_hat, y))
+            print(y_hat)
             pred = np.where(y_hat >= 0.5, 1, 0)
             # self.TP += (pred == 1) and (y == 1)
             # self.FP += (pred == 1) and (y == 0)
@@ -102,9 +113,7 @@ def execute_cls():
     datatrain = DataLoader(X, y, batch_size_cls, True)
     X1, y1 = clsdata_process(testdata_cls)
     datatest = DataLoader(X1, y1)
-    bpnn = bpNeuralNetwork(
-        model=classfication_model, loss_layer=CrossEntropyLosslayer()
-    )
+    bpnn = bpNeuralNetwork(model=classfication_model)
     bpnn.train(dataldr=datatrain)
     bpnn.test(dataldr=datatest)
 

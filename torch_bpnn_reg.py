@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 
 
-class bpNeuralNetwork(nn.module):
+class bpNeuralNetwork(nn.Module):
     def __init__(self):
         pass
 
@@ -14,3 +14,7 @@ def regsdata_process(filepath):
         X, y = data[:, 0], data[:, 1]
 
     return X, y
+
+
+if __name__ == "__main__":
+    print(torch.cuda.is_available())
