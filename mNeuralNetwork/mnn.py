@@ -3,20 +3,21 @@ from .config import Config
 
 
 class nnModel:
-    def __init__(self, layers, loss_layer, cfg=Config()):
+    def __init__(self, layers, loss_layer, cfg=None):
         self.layers = layers
         self.loss_layer = loss_layer
-        self.cfg = cfg
+        # 避免可变默认参数陷阱:每个模型自带独立的 Config 实例
+        self.cfg = cfg if cfg is not None else Config()
         self.hyparam_distb()
 
     def forward(self, X):
-        for name, layer in self.layers.items():
+        for layer in self.layers.values():
             X = layer.forward(X)
         return X
 
-    def backward(self, dout):
+    def backward(self, dout=None):
         dout = self.loss_layer.backward()
-        for name, layer in reversed(self.layers.items()):
+        for layer in reversed(self.layers.values()):
             dout = layer.backward(dout)
         return dout
 
@@ -27,7 +28,7 @@ class nnModel:
         return out
 
     def grad_dn(self):
-        for name, layer in self.layers.items():
+        for layer in self.layers.values():
             if isinstance(layer, ParamsLayer):
                 layer.grad_dn()
 

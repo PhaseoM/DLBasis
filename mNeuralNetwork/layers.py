@@ -1,5 +1,4 @@
 import numpy as np
-from torch import nn
 from abc import ABC, abstractmethod
 from .config import Config
 
@@ -22,7 +21,7 @@ class Layer(ABC):
 
 class ParamsLayer(Layer):
     @abstractmethod
-    def grad_dn(self, *step):
+    def grad_dn(self):
         pass
 
 
@@ -40,23 +39,36 @@ class LossLayer(Layer):
 
 
 class Linearlayer(ParamsLayer):
-    def __init__(self, size_in, size_out):
+    """全连接层。
+
+    初始化策略支持:
+        - "xavier" (默认, 适合 tanh/sigmoid): std = sqrt(1 / fan_in)
+        - "he"                    (适合 ReLU): std = sqrt(2 / fan_in)
+        - "glorot" (Glorot 对称):              std = sqrt(2 / (fan_in + fan_out))
+    原来的固定 0.1 缩放对 fan_in=1 的第一层会让 tanh 退化、对大 fan_in 又接近饱和,
+    深层网络下效果不稳定。默认使用 Xavier 自适应方差。
+    """
+
+    def __init__(self, size_in, size_out, init="xavier", seed=None):
         super().__init__()
-        rng = np.random.default_rng()
-        # self.W = rng.normal(0, np.sqrt(2 / size_in), size=(size_out, size_in))
-        # self.W = 0.01 * rng.normal(0, np.sqrt(2 / size_in), size=(size_in, size_out))
-        self.W = 0.1 * np.random.randn(size_in, size_out)
+        rng = np.random.default_rng(seed)
+        if init == "xavier":
+            std = np.sqrt(1.0 / size_in)
+        elif init == "he":
+            std = np.sqrt(2.0 / size_in)
+        elif init == "glorot":
+            std = np.sqrt(2.0 / (size_in + size_out))
+        else:
+            raise ValueError(f"unknown init scheme: {init}")
+        self.W = rng.standard_normal((size_in, size_out)) * std
         self.b = np.zeros(size_out)
         self.x = None
         self.dW = None
         self.db = None
 
     def forward(self, x):
-        # print(f"x:{x}\nW:{self.W}\nb:{self.b}")
         self.x = x
-        out = np.dot(x, self.W) + self.b
-        # print(f"Wx:{np.dot(x, self.W)},out:{out}")
-        return out
+        return np.dot(x, self.W) + self.b
 
     def backward(self, dout):
         dx = np.dot(dout, self.W.T)
@@ -84,8 +96,10 @@ class ReLUlayer(Layer):
         return out
 
     def backward(self, dout):
-        dout[self.mask] = 0
-        return dout
+        # 不要原地改写上游的 dout,返回一个新的梯度张量
+        dx = dout.copy()
+        dx[self.mask] = 0
+        return dx
 
 
 class Logisticlayer(Layer):
@@ -94,13 +108,13 @@ class Logisticlayer(Layer):
         self.out = None
 
     def forward(self, x):
-        x = 1 / (1 + np.exp(-x))
-        self.out = x
-        return x
+        # 数值稳定版 sigmoid,避免 exp 溢出
+        out = np.where(x >= 0, 1.0 / (1.0 + np.exp(-x)), np.exp(x) / (1.0 + np.exp(x)))
+        self.out = out
+        return out
 
     def backward(self, dout):
-        dx = self.out * (1 - self.out) * dout
-        return dx
+        return self.out * (1 - self.out) * dout
 
 
 class Tanhlayer(Layer):
@@ -109,13 +123,11 @@ class Tanhlayer(Layer):
         self.out = None
 
     def forward(self, x):
-        # x = 2 / (1 + np.exp(-2 * x)) - 1
         self.out = np.tanh(x)
         return self.out
 
     def backward(self, dout):
-        dx = (1 - self.out**2) * dout
-        return dx
+        return (1 - self.out**2) * dout
 
 
 class MSELosslayer(LossLayer):
@@ -124,42 +136,65 @@ class MSELosslayer(LossLayer):
         self.delta_y = None
 
     def forward(self, pred, y):
-        # print(pred)
+        n = pred.shape[0]
         self.delta_y = pred - y
+        data_loss = 0.5 * np.sum(self.delta_y**2) / n
         if self.cfg.is_regular:
-            loss = 0.5 * (
-                np.sum((pred - y) ** 2) / pred.shape[0]
-                + self.cfg.lamb * self.l2_regular
-            )
+            loss = data_loss + 0.5 * self.cfg.lamb * self.l2_regular
         else:
-            loss = 0.5 * np.sum((pred - y) ** 2) / pred.shape[0]
+            loss = data_loss
         self.out = loss
         return loss
 
     def backward(self):
-        dx = self.delta_y / self.delta_y.shape[0]
-        return dx
+        return self.delta_y / self.delta_y.shape[0]
 
 
 class CrossEntropyLosslayer(LossLayer):
+    """交叉熵。同时支持两种用法:
+
+    - 多分类: pred 为 softmax 后的概率分布 (N, C),标签 y 为 one-hot (N, C),
+      损失为 -sum(y * log(pred)) / N。
+    - 二分类: pred 为 sigmoid 输出的正类概率 (N, 1) 或 (N,),标签 y 同形状,
+      取值 {0, 1},自动走 BCE:-[y*log(p) + (1-y)*log(1-p)] 的均值。
+
+    两种模式下 forward / backward 都按 batch 维度做平均,梯度尺度一致。
+    """
+
     def __init__(self):
         super().__init__()
-        self.frac_y = None
+        self.pred = None
+        self.y = None
+        self.mode = None  # "bce" or "ce"
+
+    def _is_binary(self, pred):
+        return pred.ndim == 1 or pred.shape[-1] == 1
 
     def forward(self, pred, y):
-        pred = np.clip(pred, 1e-12, 1.0)
-        self.frac_y = y / pred
-        if self.cfg.is_regular:
-            loss = -np.mean(y * np.log(pred)) + 0.5 * self.cfg.lamb * self.l2_regular
+        n = pred.shape[0]
+        eps = self.cfg.eps
+        self.mode = "bce" if self._is_binary(pred) else "ce"
+        if self.mode == "bce":
+            pred = np.clip(pred, eps, 1.0 - eps)
+            self.pred = pred
+            self.y = y
+            data_loss = -np.sum(y * np.log(pred) + (1 - y) * np.log(1 - pred)) / n
         else:
-            loss = -np.mean(y * np.log(pred))
+            pred = np.clip(pred, eps, 1.0)
+            self.pred = pred
+            self.y = y
+            data_loss = -np.sum(y * np.log(pred)) / n
+
+        if self.cfg.is_regular:
+            loss = data_loss + 0.5 * self.cfg.lamb * self.l2_regular
+        else:
+            loss = data_loss
         self.out = loss
-        # print(
-        #     f"BCE fw: pred:{pred.shape},loss:{loss.shape},y:{y.shape},frac_y:{self.frac_y.shape}"
-        # )
         return loss
 
     def backward(self):
-        dx = -self.frac_y / self.frac_y.shape[0]
-        # print(f"BCE bw: dx:{dx.shape},frac_y:{self.frac_y.shape}")
-        return dx
+        n = self.pred.shape[0]
+        if self.mode == "bce":
+            # d/dp of BCE = (p - y) / (p * (1 - p))
+            return (self.pred - self.y) / (self.pred * (1 - self.pred)) / n
+        return -(self.y / self.pred) / n
