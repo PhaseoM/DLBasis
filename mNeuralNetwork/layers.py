@@ -49,9 +49,9 @@ class Linearlayer(ParamsLayer):
     深层网络下效果不稳定。默认使用 Xavier 自适应方差。
     """
 
-    def __init__(self, size_in, size_out, init="xavier", seed=None):
+    def __init__(self, size_in, size_out, init="xavier"):
         super().__init__()
-        rng = np.random.default_rng(seed)
+        # rng = np.random.default_rng()
         if init == "xavier":
             std = np.sqrt(1.0 / size_in)
         elif init == "he":
@@ -60,7 +60,7 @@ class Linearlayer(ParamsLayer):
             std = np.sqrt(2.0 / (size_in + size_out))
         else:
             raise ValueError(f"unknown init scheme: {init}")
-        self.W = rng.standard_normal((size_in, size_out)) * std
+        self.W = np.random.standard_normal((size_in, size_out)) * std
         self.b = np.zeros(size_out)
         self.x = None
         self.dW = None
@@ -96,7 +96,6 @@ class ReLUlayer(Layer):
         return out
 
     def backward(self, dout):
-        # 不要原地改写上游的 dout,返回一个新的梯度张量
         dx = dout.copy()
         dx[self.mask] = 0
         return dx
