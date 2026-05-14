@@ -12,8 +12,9 @@ testdata_cls = "./data/diabetes/classification/diabetes_test"
 
 
 class bpNeuralNetwork:
-    def __init__(self, model: mnn.nnModel):
+    def __init__(self, model: mnn.nnModel, threshold):
         self.model = model
+        self.threshold = threshold
         self.pred_history = []
         self.out = None
         self.TP = 0
@@ -46,7 +47,7 @@ class bpNeuralNetwork:
             y_hat = self.model.forward(X)
             pred_arr.append(y_hat)
             self.pred_history.append((y_hat, y))
-            pred = (y_hat >= 0.5).astype(int)
+            pred = (y_hat >= self.threshold).astype(int)
             y_int = y.astype(int)
             self.TP += int(np.sum((pred == 1) & (y_int == 1)))
             self.FP += int(np.sum((pred == 1) & (y_int == 0)))
@@ -82,6 +83,7 @@ def execute_cls(
     lamb=1e-4,
     is_regular=True,
     outlength=50,
+    threshold=0.5,
 ):
     print(
         f"============ [HyperParams: epochs:{epochs} batch_size:{batch_size} hide_layer_size:{hide_layer_size}] ================"
@@ -115,7 +117,7 @@ def execute_cls(
     X1, y1 = clsdata_process(testdata_cls)
 
     datatest = DataLoader(X1, y1, 1)
-    bpnn = bpNeuralNetwork(model=classfication_model)
+    bpnn = bpNeuralNetwork(model=classfication_model, threshold=threshold)
 
     loss_train_arr = []
     loss_test_arr = []

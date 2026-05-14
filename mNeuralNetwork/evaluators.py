@@ -41,11 +41,11 @@ def rocEval(tp, fp, tn, fn, pred_history):
     plt.show()
 
 
-def roc_Eval(histories):
+def roc_Eval(histories, title):
     plt.figure()
     plt.xlabel("FPR")
     plt.ylabel("TPR")
-    plt.title("ROC")
+    plt.title("ROC" + title)
 
     for label, pred_history in histories:
         scores = np.array([float(np.asarray(p).ravel()[0]) for p, _ in pred_history])
