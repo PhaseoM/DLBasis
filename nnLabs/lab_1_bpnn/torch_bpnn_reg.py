@@ -9,8 +9,8 @@ import torch.nn.functional as F
 TRAIN_PATH = "./data/diabetes/regression/sinc_train"
 TEST_PATH = "./data/diabetes/regression/sinc_test"
 
-EPOCHS = 3000
-BATCH_SIZE = 5000
+EPOCHS = 1000
+BATCH_SIZE = 500
 HIDDEN = 256
 LR = 1e-2
 WEIGHT_DECAY = 1e-5
@@ -51,10 +51,7 @@ def regsdata_process(filepath):
 
 def load_to_device(X_np: np.ndarray, y_np: np.ndarray):
     """一次性把数据搬到目标 device,之后训练循环再也不跨设备拷贝。"""
-    X = (
-        torch.from_numpy(X_np).float().reshape(-1, 1).to(DEVICE, non_blocking=True)
-        / X_SCALE
-    )
+    X = torch.from_numpy(X_np).float().reshape(-1, 1).to(DEVICE, non_blocking=True) / X_SCALE
     y = torch.from_numpy(y_np).float().reshape(-1, 1).to(DEVICE, non_blocking=True)
     return X, y
 

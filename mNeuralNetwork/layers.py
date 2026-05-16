@@ -197,3 +197,21 @@ class CrossEntropyLosslayer(LossLayer):
             # d/dp of BCE = (p - y) / (p * (1 - p))
             return (self.pred - self.y) / (self.pred * (1 - self.pred)) / n
         return -(self.y / self.pred) / n
+
+
+class LeakyReLUlayer(Layer):
+    def __init__(self, alpha=0.01):
+        super().__init__()
+        self.alpha = alpha
+        self.mask = None
+
+    def forward(self, x):
+        self.mask = x <= 0
+        out = x.copy()
+        out[self.mask] *= self.alpha
+        return out
+
+    def backward(self, dout):
+        dx = dout.copy()
+        dx[self.mask] *= self.alpha
+        return dx

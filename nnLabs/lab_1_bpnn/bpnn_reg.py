@@ -78,6 +78,8 @@ def execute_reg(
     )
     # print(f"HyperParams: epochs:{epochs} batch_size:{batch_size} hide_layer_size:{hide_layer_size}")
     modelParams = f"ep={epochs} bs={batch_size} hs={hide_layer_size}"
+    # modelParams = f"ep={epochs} bs={batch_size} hs={hide_layer_size} lb={lamb}"
+
     regression_model = mnn.nnModel(
         layers=OrderedDict(
             [
