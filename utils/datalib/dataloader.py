@@ -1,16 +1,4 @@
-import torch
 import numpy as np
-
-
-class PerPixelMeanSub:
-    def __init__(self, pixelmean: torch.Tensor):
-        self.pixelmean = pixelmean.view(3, 1, 1)
-
-    def __call__(
-        self,
-        img: torch.Tensor,
-    ) -> torch.Tensor:
-        return img - self.pixelmean
 
 
 class DataLoader:

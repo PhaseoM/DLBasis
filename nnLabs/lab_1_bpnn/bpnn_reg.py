@@ -4,7 +4,7 @@ from mNeuralNetwork import mnn
 from mNeuralNetwork.layers import *
 from mNeuralNetwork.evaluators import *
 from mNeuralNetwork.config import Config
-from utils.dataplib import DataLoader
+from utils.datalib.dataloader import DataLoader
 from collections import OrderedDict
 from tqdm import tqdm
 
@@ -128,7 +128,9 @@ def execute_reg(
         loss_train_arr.append((epoch, train_loss))
         loss_test_arr.append((epoch, test_loss))
         if epoch % outlength == 0 or epoch == epochs - 1:
-            print(f"train_loss:{train_loss:>7f}, test_loss:{test_loss:>7f}[{epoch:>5d}/{epochs:>5d}]")
+            print(
+                f"train_loss:{train_loss:>7f}, test_loss:{test_loss:>7f}[{epoch:>5d}/{epochs:>5d}]"
+            )
     pred_arr, test_loss_ = bpnn.test(dataldr=datatest)
     order = np.argsort(X1)
     plt.figure()

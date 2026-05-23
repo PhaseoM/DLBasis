@@ -14,6 +14,28 @@ datapath = "./data/cifar10/"
 pixelmean = [0.49139968, 0.48215841, 0.44653091]
 pixelstd = [0.24703223, 0.24348513, 0.26158784]
 
+transform_normal = v2.Compose(
+    [
+        v2.ToImage(),
+        v2.ToDtype(dtype=torch.float32, scale=True),
+        v2.Normalize(mean=pixelmean, std=[1.0, 1.0, 1.0]),
+    ]
+)
+transform_data_augment = v2.Compose(
+    [
+        v2.ToImage(),
+        v2.ToDtype(dtype=torch.float32, scale=True),
+        v2.Pad(4),
+        v2.RandomCrop(32),
+        v2.RandomHorizontalFlip(),
+        v2.Normalize(mean=pixelmean, std=[1.0, 1.0, 1.0]),
+    ]
+)
+
+transform_train_val = (
+    transform_data_augment if conf.is_data_augment else transform_normal
+)
+
 train_val_data = datasets.CIFAR10(
     root=datapath,
     train=True,
@@ -37,13 +59,7 @@ test_data = datasets.CIFAR10(
     root=datapath,
     train=False,
     download=True,
-    transform=v2.Compose(
-        [
-            v2.ToImage(),
-            v2.ToDtype(dtype=torch.float32, scale=True),
-            v2.Normalize(mean=pixelmean, std=[1.0, 1.0, 1.0]),
-        ]
-    ),
+    transform=transform_normal,
 )
 
 device = (
@@ -147,19 +163,36 @@ def train(
     return train_loss / n_batch
 
 
-def test(dataloader: DataLoader, model: nn.Module, loss_fn):
+def validate(dataloader: DataLoader, model: nn.Module, loss_fn):
     model.eval()
-    test_loss, correct = 0, 0
-    n_batch = dataloader.batch_size
+    val_loss, correct = 0, 0
+    size_n = len(dataloader.dataset)
     with torch.no_grad():
         for X, y in dataloader:
             logits = model(X)
-            test_loss += loss_fn(logits, y).item()
+            loss = loss_fn(logits, y)
+            val_loss += loss.item() * X.size(0)
 
-            prob = nnF.softmax(logits)
-            pred = torch.argmax(prob)
-            correct += pred == y
-    return test_loss / n_batch, correct / n_batch
+            # prob = nnF.softmax(logits, dim=1)
+            pred = logits.argmax(dim=1)
+            correct += (pred == y).sum().item()
+    return val_loss / size_n, correct / size_n
+
+
+def test(dataloader: DataLoader, model: nn.Module, loss_fn):
+    model.eval()
+    test_loss, correct = 0, 0
+    size_n = len(dataloader.dataset)
+    with torch.no_grad():
+        for X, y in dataloader:
+            logits = model(X)
+            loss = loss_fn(logits, y)
+            test_loss += loss.item() * X.size(0)
+
+            # prob = nnF.softmax(logits, dim=1)
+            pred = logits.argmax(dim=1)
+            correct += (pred == y).sum().item()
+    return test_loss / size_n, correct / size_n
 
 
 if __name__ == "__main__":
@@ -178,6 +211,7 @@ if __name__ == "__main__":
     )
     loss_fn = nn.CrossEntropyLoss()
     for epoch in range(conf.epochs):
+        print(f"========== Epoch: [{epoch}/{conf.epochs}] ==========")
         train_loss = train(
             dataloader=train_dataloader,
             model=model,
@@ -185,8 +219,16 @@ if __name__ == "__main__":
             scheduler=scheduler,
             loss_fn=loss_fn,
         )
-        test_loss, test_correct = test(
+        val_loss, val_accuracy = validate(
             dataloader=test_dataloader,
             model=model,
             loss_fn=loss_fn,
         )
+        test_loss, test_accuracy = test(
+            dataloader=test_dataloader,
+            model=model,
+            loss_fn=loss_fn,
+        )
+        print(f"train loss: {train_loss}")
+        print(f"validate loss: {val_loss}, accuracy: {val_accuracy}")
+        print(f"test loss: {test_loss}, accuracy: {test_accuracy}")

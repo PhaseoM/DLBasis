@@ -4,7 +4,7 @@ from tqdm import tqdm
 from mNeuralNetwork import mnn
 from mNeuralNetwork.layers import *
 from mNeuralNetwork.evaluators import *
-from utils.dataplib import DataLoader
+from utils.datalib.dataloader import DataLoader
 from collections import OrderedDict
 
 traindata_cls = "./data/diabetes/classification/diabetes_train"
@@ -61,10 +61,10 @@ class bpNeuralNetwork:
 
     def eval(self):
         print(f"TP={self.TP} FP={self.FP} TN={self.TN} FN={self.FN}")
-        print(f"accuracy: {accuracyEval(self.TP,self.FP,self.TN,self.FN):.4f}")
-        print(f"precision: {precisionEval(self.TP,self.FP,self.TN,self.FN):.4f}")
-        print(f"recall: {recallEval(self.TP,self.FP,self.TN,self.FN):.4f}")
-        print(f"f1_score: {f1scoreEval(self.TP,self.FP,self.TN,self.FN):.4f}")
+        print(f"accuracy: {accuracyEval(self.TP, self.FP, self.TN, self.FN):.4f}")
+        print(f"precision: {precisionEval(self.TP, self.FP, self.TN, self.FN):.4f}")
+        print(f"recall: {recallEval(self.TP, self.FP, self.TN, self.FN):.4f}")
+        print(f"f1_score: {f1scoreEval(self.TP, self.FP, self.TN, self.FN):.4f}")
         # roc_Eval([("model", self.pred_history)])
 
 
