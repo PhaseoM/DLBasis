@@ -16,11 +16,12 @@ class Tee:
             f.flush()
 
 
-def tee_output(filepath, mode="w"):
+# feature: output > Terminal & @filename
+def tee_output(filename, mode="w"):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            with open(filepath, mode=mode) as f:
+            with open(filename, mode=mode) as f:
                 sys.stdout = Tee(sys.__stdout__, f)
                 res = func(*args, **kwargs)
                 sys.stdout = sys.__stdout__
