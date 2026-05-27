@@ -3,4 +3,4 @@
 data/
 __pycache__/
 data_analysis/
-./nnLabs/lab_2_cnn/models/
+models/
