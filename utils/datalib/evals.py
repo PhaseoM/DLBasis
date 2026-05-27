@@ -142,32 +142,49 @@ def loss_eval(
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
 
+    colors = [
+        "red",
+        "C0",  # lightblue
+        "orange",
+        "skyblue",
+        "green",
+        "blue",
+        "pink",
+        "purple",
+        "brown",
+        "gray",
+        "black",
+    ]
+
+    if len(train_lists) > len(colors):
+        raise Exception("Too many lines in one figure")
+
     labels = kwargs.get("labels", None)
     if train_lists is None:
         for i, test_list in enumerate(test_lists):
             size_n = len(test_list)
             indices = [_ for _ in range(size_n)]
             if labels is None:
-                ax.plot(indices, test_list)
+                ax.plot(indices, test_list, c=colors[i])
             else:
-                ax.plot(indices, test_list, label=labels[i])
+                ax.plot(indices, test_list, c=colors[i], label=labels[i])
     elif test_lists is None:
         for i, train_list in enumerate(train_lists):
             size_n = len(train_list)
             indices = [_ for _ in range(size_n)]
             if labels is None:
-                ax.plot(indices, train_list)
+                ax.plot(indices, train_list, c=colors[i])
             else:
-                ax.plot(indices, train_list, label=labels[i])
+                ax.plot(indices, train_list, c=colors[i], label=labels[i])
     else:
         for i, (train_list, test_list) in enumerate(list(zip(train_lists, test_lists))):
             size_n = len(train_list)
             indices = [_ for _ in range(size_n)]
-            ax.plot(indices, train_list, linestyle="--")
+            ax.plot(indices, train_list, c=colors[i], linestyle="--")
             if labels is None:
-                ax.plot(indices, test_list)
+                ax.plot(indices, test_list, c=colors[i])
             else:
-                ax.plot(indices, test_list, label=labels[i])
+                ax.plot(indices, test_list, c=colors[i], label=labels[i])
     if labels is not None:
         ax.legend(fontsize=7)
     return fig

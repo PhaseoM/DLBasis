@@ -1,3 +1,5 @@
+import os
+import random
 import torch
 import pickle
 import numpy as np
@@ -9,8 +11,26 @@ from torchvision.transforms import v2
 from torch.utils.data import DataLoader
 from . import conf
 
-seed = 2650
-torch.manual_seed(seed)
+seed = 3407
+
+
+def seed_everything(seed: int = 42):
+    # random.seed(seed)
+    np.random.seed(seed)
+
+    os.environ["PYTHONHASHSEED"] = str(seed)
+
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+    torch.use_deterministic_algorithms(True)
+
+
+seed_everything(seed)
 
 datapath = "./data/cifar10/"
 pixelmean = [0.49139968, 0.48215841, 0.44653091]
@@ -179,6 +199,24 @@ def test_prob(dataloader: DataLoader, model: nn.Module):
     return history
 
 
+def model_load_test(model_path):
+    test_data = datasets.CIFAR10(
+        root=datapath,
+        train=False,
+        download=True,
+        transform=transform_normal,
+    )
+    model = torch.load(model_path, map_location=device, weights_only=False)
+    loss_fn = nn.CrossEntropyLoss()
+    test_dataloader = DataLoader(test_data, batch_size=conf.batchsize)
+    test_loss, test_accuracy = test(
+        dataloader=test_dataloader,
+        model=model,
+        loss_fn=loss_fn,
+    )
+    print(f"test loss: {test_loss:>7f}, accuracy: {test_accuracy:>7f}")
+
+
 def main():
     transform_train = (
         transform_data_augment if conf.is_data_augment else transform_normal
@@ -252,6 +290,12 @@ def main():
             pickle.dump(test_loss_list, f)
             pickle.dump(train_error_list, f)
             pickle.dump(test_error_list, f)
+
+        randomtoken = "".join(random.choices("0123456789abcdefABCDEF", k=7))
+        modelpath = (
+            conf.model_dump_filepath + f"resnet_{conf.block_n * 6 + 2}-{randomtoken}"
+        )
+        torch.save(model, modelpath)
 
     run()
 

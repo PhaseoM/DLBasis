@@ -1,3 +1,6 @@
+import os
+import random
+import numpy as np
 import torch
 import pickle
 import utils.unis as unis
@@ -8,8 +11,26 @@ from torchvision.transforms import v2
 from torch.utils.data import DataLoader
 from . import conf
 
-seed = 2650
-torch.manual_seed(seed)
+seed = 3407
+
+
+def seed_everything(seed: int = 42):
+    # random.seed(seed)
+    np.random.seed(seed)
+
+    os.environ["PYTHONHASHSEED"] = str(seed)
+
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+    torch.use_deterministic_algorithms(True)
+
+
+seed_everything(seed)
 
 datapath = "./data/cifar10/"
 pixelmean = [0.49139968, 0.48215841, 0.44653091]
@@ -252,6 +273,9 @@ def main():
             pickle.dump(test_loss_list, f)
             pickle.dump(train_error_list, f)
             pickle.dump(test_error_list, f)
+        randomtoken = "".join(random.choices("0123456789abcdefABCDEF", k=7))
+        modelpath = conf.model_dump_filepath + f"plain_{18 * 6 + 2}-{randomtoken}"
+        torch.save(model, modelpath)
 
     run()
 

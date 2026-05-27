@@ -1,8 +1,8 @@
 import os
-import random
-import numpy as np
 import torch
 import pickle
+import numpy as np
+import random
 import utils.unis as unis
 import torch.nn.functional as nnF
 from torch import nn
@@ -68,9 +68,10 @@ def get_pixel_mean():
     return pixel_mean
 
 
-class NormalBlock(nn.Module):
+class ResidualBlock(nn.Module):
     def __init__(self, input_channels, output_channels):
         super().__init__()
+        self.is_projection = input_channels != output_channels
         strides = 1 + int(input_channels != output_channels)
         self.F = nn.Sequential(
             nn.Conv2d(
@@ -84,22 +85,29 @@ class NormalBlock(nn.Module):
             nn.ReLU(),
             nn.Conv2d(output_channels, output_channels, kernel_size=3, padding=1),
             nn.BatchNorm2d(output_channels),
-            nn.ReLU(),
+        )
+        self.projection = (
+            nn.Conv2d(input_channels, output_channels, kernel_size=1, stride=strides)
+            if input_channels != output_channels
+            else nn.Identity()
         )
 
     def forward(self, X):
-        return self.F(X)
+        H = self.F(X)
+        X = self.projection(X)
+        H = H + X
+        return nnF.relu(H)
 
 
-def normal_block(size_n, input_channels, output_channels):
+def res_block(size_n, input_channels, output_channels):
     res = []
-    res.append(NormalBlock(input_channels, output_channels))
+    res.append(ResidualBlock(input_channels, output_channels))
     for i in range(1, size_n):
-        res.append(NormalBlock(output_channels, output_channels))
+        res.append(ResidualBlock(output_channels, output_channels))
     return res
 
 
-class CNN(nn.Module):
+class ResNet(nn.Module):
     def __init__(self):
         super().__init__()
         self.nnModel = nn.Sequential(
@@ -108,9 +116,9 @@ class CNN(nn.Module):
             ),  # map_size: 32
             nn.BatchNorm2d(num_features=16),
             nn.ReLU(),
-            *normal_block(conf.block_n, 16, 16),  # map_size: 32
-            *normal_block(conf.block_n, 16, 32),  # map_size: 16
-            *normal_block(conf.block_n, 32, 64),  # map_size: 8
+            *res_block(18, 16, 16),  # map_size: 32
+            *res_block(18, 16, 32),  # map_size: 16
+            *res_block(18, 32, 64),  # map_size: 8
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(),
             nn.Linear(64, 10),
@@ -196,9 +204,9 @@ def main():
         transform_data_augment if conf.is_data_augment else transform_normal
     )
 
-    @unis.tee_output(conf.info_output_filepath + f"plain_{conf.block_n * 6 + 2}")
+    @unis.tee_output(conf.info_output_filepath + f"resnet_{18 * 6 + 2}_opt")
     def run():
-        print(f"plain_{conf.block_n * 6 + 2}")
+        print(f"resnet_{18 * 6 + 2}_opt")
         train_data = datasets.CIFAR10(
             root=datapath,
             train=True,
@@ -216,15 +224,26 @@ def main():
             train_data, batch_size=conf.batchsize, shuffle=True
         )
         test_dataloader = DataLoader(test_data, batch_size=conf.batchsize)
-        model = CNN().to(device)
+        model = ResNet().to(device)
         optimizer = torch.optim.SGD(
             model.parameters(),
             lr=conf.learning_rate,
             weight_decay=conf.weight_decay,
             momentum=conf.momentum,
         )
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(
-            optimizer=optimizer, milestones=[32000, 48000], gamma=0.1
+
+        def lr_lambda(step):
+            if step < 400:
+                return 0.1
+            elif step < 32000:
+                return 1.0
+            elif step < 48000:
+                return 0.1
+            else:
+                return 0.01
+
+        scheduler = torch.optim.lr_scheduler.LambdaLR(
+            optimizer=optimizer, lr_lambda=lr_lambda
         )
         loss_fn = nn.CrossEntropyLoss()
         train_loss_list = []
@@ -256,19 +275,14 @@ def main():
             print(f"test loss: {test_loss:>7f}, accuracy: {test_accuracy:>7f}")
 
         history = test_prob(dataloader=test_dataloader, model=model)
-        with open(
-            conf.pkl_dump_filepath + f"plain_{conf.block_n * 6 + 2}.pkl", "wb"
-        ) as f:
+        with open(conf.pkl_dump_filepath + f"resnet_{18 * 6 + 2}_opt.pkl", "wb") as f:
             pickle.dump(history, f)
             pickle.dump(train_loss_list, f)
             pickle.dump(test_loss_list, f)
             pickle.dump(train_error_list, f)
             pickle.dump(test_error_list, f)
-
         randomtoken = "".join(random.choices("0123456789abcdefABCDEF", k=7))
-        modelpath = (
-            conf.model_dump_filepath + f"plain_{conf.block_n * 6 + 2}-{randomtoken}"
-        )
+        modelpath = conf.model_dump_filepath + f"resnet_{18 * 6 + 2}_opt-{randomtoken}"
         torch.save(model, modelpath)
 
     run()
