@@ -89,7 +89,9 @@ def info_save():
         test_lists.append(plain_56[4])
         labels.append("Plain-56")
         fig_arr.append(
-            loss_eval(train_lists, test_lists, "PlainCNN error", labels=labels)
+            loss_eval(
+                train_lists, test_lists, "PlainCNN error", labels=labels, ylabel="error"
+            )
         )
         train_lists, test_lists, labels = [], [], []
 
@@ -103,7 +105,9 @@ def info_save():
         test_lists.append(resnet_56[4])
         labels.append("ResNet-56")
         fig_arr.append(
-            loss_eval(train_lists, test_lists, "ResNet error", labels=labels)
+            loss_eval(
+                train_lists, test_lists, "ResNet error", labels=labels, ylabel="error"
+            )
         )
         train_lists, test_lists, labels = [], [], []
 
@@ -136,14 +140,20 @@ def info_save():
         test_lists.append(resnet_110[4])
         labels.append("ResNet-110")
         fig_arr.append(
-            loss_eval(train_lists, test_lists, "Plain_ResNet-110 error", labels=labels)
+            loss_eval(
+                train_lists,
+                test_lists,
+                "Plain_ResNet-110 error",
+                labels=labels,
+                ylabel="error",
+            )
         )
         train_lists, test_lists, labels = [], [], []
 
-    # __roc_eval__(fig_arr_)
-    # __loss_eval__(fig_arr_)
-    # __error_eval__(fig_arr_)
-    __deep_net__(fig_arr_)
+    __roc_eval__(fig_arr_)
+    __loss_eval__(fig_arr_)
+    __error_eval__(fig_arr_)
+    # __deep_net__(fig_arr_)
 
     for fig in fig_arr_:
         title = fig.gca().get_title()
