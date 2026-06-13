@@ -1,0 +1,4 @@
+[HyperParam]
+lr = 0.01
+batch_size = 64
+weight_decay = 1e-4
