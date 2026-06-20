@@ -81,23 +81,21 @@ def execute_reg(
     # modelParams = f"ep={epochs} bs={batch_size} hs={hide_layer_size} lb={lamb}"
 
     regression_model = mnn.nnModel(
-        layers=OrderedDict(
-            [
-                ("linear_1", Linearlayer(1, hide_layer_size)),
-                # ("relu_1", ReLUlayer()),
-                # ("sigmoid_1", Logisticlayer()),
-                ("tanh_1", Tanhlayer()),
-                ("linear_2", Linearlayer(hide_layer_size, hide_layer_size)),
-                # ("relu_2", ReLUlayer()),
-                # ("sigmoid_2", Logisticlayer()),
-                ("tanh_2", Tanhlayer()),
-                # ("linear_3", Linearlayer(hide_layer_size, hide_layer_size)),
-                # ("relu_3", ReLUlayer()),
-                # ("sigmoid_3", Logisticlayer()),
-                # ("tanh_3", Tanhlayer()),
-                ("linear_end", Linearlayer(hide_layer_size, 1)),
-            ]
-        ),
+        layers=OrderedDict([
+            ("linear_1", Linearlayer(1, hide_layer_size)),
+            # ("relu_1", ReLUlayer()),
+            ("sigmoid_1", Logisticlayer()),
+            ("tanh_1", Tanhlayer()),
+            ("linear_2", Linearlayer(hide_layer_size, hide_layer_size)),
+            # ("relu_2", ReLUlayer()),
+            ("sigmoid_2", Logisticlayer()),
+            # ("tanh_2", Tanhlayer()),
+            # ("linear_3", Linearlayer(hide_layer_size, hide_layer_size)),
+            # ("relu_3", ReLUlayer()),
+            # ("sigmoid_3", Logisticlayer()),
+            # ("tanh_3", Tanhlayer()),
+            ("linear_end", Linearlayer(hide_layer_size, 1)),
+        ]),
         loss_layer=MSELosslayer(),
         cfg=Config(batchsize=batch_size, step=1e-1, lamb=lamb, is_regular=is_regular),
     )

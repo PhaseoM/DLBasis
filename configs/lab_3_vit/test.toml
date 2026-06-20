@@ -1,4 +1,0 @@
-[HyperParam]
-lr =123
-batch_size = 456
-weight_decay = 789

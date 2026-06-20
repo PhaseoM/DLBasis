@@ -1,1 +1,1 @@
-from . import vit
+from . import main
