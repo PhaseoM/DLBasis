@@ -55,11 +55,7 @@ transform_data_augment = v2.Compose(
 )
 
 
-device = (
-    torch.accelerator.current_accelerator().type
-    if torch.accelerator.is_available()
-    else "cpu"
-)
+device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
 
 
 def get_pixel_mean():
@@ -111,9 +107,7 @@ class ResNet(nn.Module):
     def __init__(self):
         super().__init__()
         self.nnModel = nn.Sequential(
-            nn.Conv2d(
-                in_channels=3, out_channels=16, kernel_size=3, padding=1
-            ),  # map_size: 32
+            nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, padding=1),  # map_size: 32
             nn.BatchNorm2d(num_features=16),
             nn.ReLU(),
             *res_block(conf.block_n, 16, 16),  # map_size: 32
@@ -218,9 +212,7 @@ def model_load_test(model_path):
 
 
 def main():
-    transform_train = (
-        transform_data_augment if conf.is_data_augment else transform_normal
-    )
+    transform_train = transform_data_augment if conf.is_data_augment else transform_normal
 
     @unis.tee_output(conf.info_output_filepath + f"resnet_{conf.block_n * 6 + 2}")
     def run():
@@ -238,9 +230,7 @@ def main():
             download=True,
             transform=transform_normal,
         )
-        train_dataloader = DataLoader(
-            train_data, batch_size=conf.batchsize, shuffle=True
-        )
+        train_dataloader = DataLoader(train_data, batch_size=conf.batchsize, shuffle=True)
         test_dataloader = DataLoader(test_data, batch_size=conf.batchsize)
         model = ResNet().to(device)
         optimizer = torch.optim.SGD(
@@ -282,9 +272,7 @@ def main():
             print(f"test loss: {test_loss:>7f}, accuracy: {test_accuracy:>7f}")
 
         history = test_prob(dataloader=test_dataloader, model=model)
-        with open(
-            conf.pkl_dump_filepath + f"resnet_{conf.block_n * 6 + 2}.pkl", "wb"
-        ) as f:
+        with open(conf.pkl_dump_filepath + f"resnet_{conf.block_n * 6 + 2}.pkl", "wb") as f:
             pickle.dump(history, f)
             pickle.dump(train_loss_list, f)
             pickle.dump(test_loss_list, f)
@@ -292,9 +280,7 @@ def main():
             pickle.dump(test_error_list, f)
 
         randomtoken = "".join(random.choices("0123456789abcdefABCDEF", k=7))
-        modelpath = (
-            conf.model_dump_filepath + f"resnet_{conf.block_n * 6 + 2}-{randomtoken}"
-        )
+        modelpath = conf.model_dump_filepath + f"resnet_{conf.block_n * 6 + 2}-{randomtoken}"
         torch.save(model, modelpath)
 
     run()

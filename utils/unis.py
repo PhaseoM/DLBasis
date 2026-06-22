@@ -1,7 +1,10 @@
+import os
 import sys
 import numpy as np
 import tomllib
 import argparse
+import random
+import functools
 from pathlib import Path
 from functools import wraps
 
@@ -99,3 +102,46 @@ def load_config(conf_var, args=None):
     for key, value in vars(args).items():
         if key != "config_path":
             conf_dict[key] = value
+
+
+def store_model_params(model, model_dump_path):
+    import torch
+
+    randomtoken = "".join(random.choices("0123456789abcdefABCDEF", k=7))
+    modelpath = str(model_dump_path) + f"-{randomtoken}"
+    torch.save(model, modelpath)
+
+
+@functools.lru_cache()
+def create_logger(output_dir, dist_rank=1, name=""):
+    import logging
+    from termcolor import colored
+
+    # create logger
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    logger.propagate = False
+
+    # create formatter
+    fmt = "[%(asctime)s %(name)s] (%(filename)s %(lineno)d): %(levelname)s %(message)s"
+    color_fmt = (
+        colored("[%(asctime)s %(name)s]", "green")
+        + colored("(%(filename)s %(lineno)d)", "yellow")
+        + ": %(levelname)s %(message)s"
+    )
+
+    # create console handlers for master process
+    if dist_rank == 0:
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(logging.DEBUG)
+        console_handler.setFormatter(logging.Formatter(fmt=color_fmt, datefmt="%Y-%m-%d %H:%M:%S"))
+        logger.addHandler(console_handler)
+
+    # create file handlers
+    # file_handler = logging.FileHandler(os.path.join(output_dir, f"log_rank{dist_rank}.txt"), mode="a")
+    file_handler = logging.FileHandler(os.path.join(output_dir, f"{name}.txt"), mode="w")
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(logging.Formatter(fmt=fmt, datefmt="%Y-%m-%d %H:%M:%S"))
+    logger.addHandler(file_handler)
+
+    return logger

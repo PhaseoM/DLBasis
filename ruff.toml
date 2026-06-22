@@ -29,7 +29,7 @@ exclude = [
 ]
 
 # Same as Black.
-line-length = 100
+line-length = 121
 indent-width = 4
 
 # Assume Python 3.10
@@ -50,6 +50,7 @@ unfixable = []
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [format]
+preview = true
 # Like Black, use double quotes for strings.
 quote-style = "double"
 

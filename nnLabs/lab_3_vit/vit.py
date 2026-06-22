@@ -79,7 +79,8 @@ class ImgPatchEmbedding(nn.Module):
 
         img_size, patch_size = _make_tuple(img_size), _make_tuple(patch_size)
         self.num_patches = (img_size[0] // patch_size[0]) * (img_size[1] // patch_size[1]) + 1
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, d_model))
+        self.cls_token = nn.Parameter(torch.empty(1, 1, d_model))
+        nn.init.trunc_normal_(self.cls_token, std=0.02, a=-0.04, b=0.04)
         self.patch_embed = nn.Sequential(
             nn.LazyConv2d(
                 out_channels=d_model,
@@ -89,7 +90,8 @@ class ImgPatchEmbedding(nn.Module):
             nn.Flatten(2),
             SequentialTranspose(1, 2),
         )
-        self.pos_embed = nn.Parameter(torch.randn(1, self.num_patches, d_model))
+        self.pos_embed = nn.Parameter(torch.empty(1, self.num_patches, d_model))
+        nn.init.trunc_normal_(self.pos_embed, std=0.02, a=-0.04, b=0.04)
         self.dropout_embed = nn.Dropout(dropout)
 
     def forward(self, X):
@@ -105,12 +107,12 @@ class VisionTransformer(nn.Module):
     def __init__(
         self,
         size_n=12,
-        num_heads=12,
         d_model=768,
+        num_heads=12,
+        num_classes=10,
         mlp_hiddens=3072,
         img_size=32,
         patch_size=4,
-        num_classes=10,
         dropout=0,
     ):
         super().__init__()
@@ -128,7 +130,3 @@ class VisionTransformer(nn.Module):
         cls_token = self.encoder(X)[:, 0]
         output = self.mlp_cls(cls_token)
         return output
-
-
-def run():
-    pass

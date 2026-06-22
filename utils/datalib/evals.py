@@ -24,6 +24,7 @@ class RocType:
 def roc_eval(
     roclist: Sequence[RocType | tuple[str | None, Sequence[Sequence[Any]]]],
     title: str | None = None,
+    logger=None,
 ) -> matplotlib.figure.Figure:
     fig, ax = plt.subplots()
     ax.set_title(title if title is not None else "roc eval")
@@ -31,12 +32,8 @@ def roc_eval(
     ax.set_ylabel("TPR")
 
     for label, out_tuples in roclist:
-        outs = np.array(
-            [int(np.asarray(out_tuple[0]).ravel()[0]) for out_tuple in out_tuples]
-        )
-        probs = np.array(
-            [float(np.asarray(out_tuple[-1]).ravel()[0]) for out_tuple in out_tuples]
-        )
+        outs = np.array([int(np.asarray(out_tuple[0]).ravel()[0]) for out_tuple in out_tuples])
+        probs = np.array([float(np.asarray(out_tuple[-1]).ravel()[0]) for out_tuple in out_tuples])
 
         if not np.isin(outs, [0, 1]).all():
             raise ValueError("roc_eval expects binary labels in the first field.")
@@ -60,7 +57,10 @@ def roc_eval(
         y = np.r_[0.0, tps[distinct_indices] / P]
 
         auc = unis.trapz(x, y)
-        print(f"[{label}] auc: {auc:.4f}")
+        if logger is None:
+            print(f"[{label}] auc: {auc:.4f}")
+        else:
+            logger.info(f"[{label}] auc: {auc:.4f}")
         ax.plot(x, y, label=f"{label} (AUC={auc:.2f})", lw=1)
 
     ax.plot([0.0, 1.0], [0.0, 1.0], linestyle="-.")
@@ -73,6 +73,7 @@ def roc_eval_multicls(
     title: str | None = None,
     class_labels: Sequence[str] | None = None,
     class_count: int | None = None,
+    logger=None,
 ) -> matplotlib.figure.Figure:
     binary_roclist: list[RocType] = []
 
@@ -80,17 +81,11 @@ def roc_eval_multicls(
         if not out_tuples:
             continue
 
-        y_true = np.array(
-            [int(np.asarray(out_tuple[0]).ravel()[0]) for out_tuple in out_tuples]
-        )
-        probs = np.array(
-            [np.asarray(out_tuple[-1], dtype=float) for out_tuple in out_tuples]
-        )
+        y_true = np.array([int(np.asarray(out_tuple[0]).ravel()[0]) for out_tuple in out_tuples])
+        probs = np.array([np.asarray(out_tuple[-1], dtype=float) for out_tuple in out_tuples])
 
         if probs.ndim != 2:
-            raise ValueError(
-                "roc_eval_multicls expects prob vectors in the last field."
-            )
+            raise ValueError("roc_eval_multicls expects prob vectors in the last field.")
 
         n_classes = class_count if class_count is not None else probs.shape[1]
         if probs.shape[1] < n_classes:
@@ -99,21 +94,17 @@ def roc_eval_multicls(
             raise ValueError("class_labels length is smaller than class_count.")
 
         for class_index in range(n_classes):
-            class_name = (
-                class_labels[class_index]
-                if class_labels is not None
-                else f"class-{class_index}"
-            )
+            class_name = class_labels[class_index] if class_labels is not None else f"class-{class_index}"
             label_prefix = model_label if model_label is not None else "model"
             binary_data = [
-                (int(target == class_index), None, float(prob[class_index]))
-                for target, prob in zip(y_true, probs)
+                (int(target == class_index), None, float(prob[class_index])) for target, prob in zip(y_true, probs)
             ]
             binary_roclist.append(RocType(f"{label_prefix}-{class_name}", binary_data))
 
     return roc_eval(
         binary_roclist,
         title=title if title is not None else "multiclass roc eval",
+        logger=logger,
     )
 
 

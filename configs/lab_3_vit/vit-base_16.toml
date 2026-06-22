@@ -1,0 +1,17 @@
+  [HyperParam]
+  epochs = 2
+  lr = 3e-5
+  batch_size = 8
+  weight_decay = 0.05
+  dropout = 0.0
+  beta_1 = 0.9
+  beta_2 = 0.999
+  warmup_steps = 500
+
+  num_layers = 12
+  d_model = 768
+  num_heads = 12
+  mlp_hiddens = 3072
+  img_size = 224
+  patch_size = 16
+  num_classes = 10
