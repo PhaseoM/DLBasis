@@ -13,9 +13,7 @@ class ScaledDotAttention(nn.Module):
         scale = Q_.shape[-1] ** 0.5
         att_score = torch.matmul(Q_, K_.transpose(-2, -1)) / scale
         if self.masked is True:
-            causal_mask = torch.ones(
-                seq_len, seq_len, dtype=torch.bool, device=att_score.device
-            ).triu(diagonal=1)
+            causal_mask = torch.ones(seq_len, seq_len, dtype=torch.bool, device=att_score.device).triu(diagonal=1)
             att_score = att_score.masked_fill(causal_mask, -torch.inf)
         att_score = nnF.softmax(att_score, dim=-1)
         att_score = torch.matmul(att_score, V_)
@@ -29,10 +27,10 @@ class MultiHeadAttention(nn.Module):
             raise ValueError("d_model can't be evenly divisible by num_heads")
         self.attention = att_score
         self.num_heads = num_heads
-        self.w_q = nn.LazyLinear(out_features=d_model, bias=bias)
-        self.w_k = nn.LazyLinear(out_features=d_model, bias=bias)
-        self.w_v = nn.LazyLinear(out_features=d_model, bias=bias)
-        self.w_o = nn.LazyLinear(out_features=d_model, bias=bias)
+        self.w_q = nn.Linear(in_features=d_model, out_features=d_model, bias=bias)
+        self.w_k = nn.Linear(in_features=d_model, out_features=d_model, bias=bias)
+        self.w_v = nn.Linear(in_features=d_model, out_features=d_model, bias=bias)
+        self.w_o = nn.Linear(in_features=d_model, out_features=d_model, bias=bias)
 
     def forward(self, X):
         query = self._transpose(self.w_q(X))

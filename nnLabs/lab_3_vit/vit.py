@@ -82,7 +82,8 @@ class ImgPatchEmbedding(nn.Module):
         self.cls_token = nn.Parameter(torch.empty(1, 1, d_model))
         nn.init.trunc_normal_(self.cls_token, std=0.02, a=-0.04, b=0.04)
         self.patch_embed = nn.Sequential(
-            nn.LazyConv2d(
+            nn.Conv2d(
+                in_channels=3,
                 out_channels=d_model,
                 kernel_size=patch_size,
                 stride=patch_size,

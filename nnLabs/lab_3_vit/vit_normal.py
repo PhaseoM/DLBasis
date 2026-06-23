@@ -116,9 +116,10 @@ def run():
     total_steps = conf.epochs * len(train_dataloader)
     scheduler = torch.optim.lr_scheduler.LambdaLR(
         optimizer=optimizer,
-        lr_lambda=lr_scheduler.warmup_linear_decay(conf.warmup_steps, total_steps),
+        lr_lambda=lr_scheduler.warmup_cosine_decay(conf.warmup_steps, total_steps),
     )
-    loss_fn = nn.CrossEntropyLoss()
+    loss_fn_train = nn.CrossEntropyLoss(label_smoothing=conf.label_smoothing)
+    loss_fn_test = nn.CrossEntropyLoss()
 
     train_loss_list = []
     test_loss_list = []
@@ -130,6 +131,8 @@ def run():
         dynamic_ncols=True,
     )
 
+    logger.info(conf)
+
     for epoch in pbar:
         train_loss, train_correct = train(
             device=device,
@@ -137,13 +140,13 @@ def run():
             model=model,
             optimizer=optimizer,
             scheduler=scheduler,
-            loss_fn=loss_fn,
+            loss_fn=loss_fn_train,
         )
         test_loss, test_correct = test(
             device=device,
             dataloader=test_dataloader,
             model=model,
-            loss_fn=loss_fn,
+            loss_fn=loss_fn_test,
         )
         train_loss_list.append(train_loss)
         test_loss_list.append(test_loss)
@@ -154,8 +157,10 @@ def run():
             train_loss=f"{train_loss:.4f}",
             test_loss=f"{test_loss:.4f}",
         )
-        logger.info(f"train_loss={train_loss:.4f},train_acc={train_correct:.4f}")
-        logger.info(f"test_loss={test_loss:.4f},test_acc={test_correct:.4f}")
+        logger.info(
+            f"train_loss={train_loss:.4f},test_loss={test_loss:.4f},"
+            f"train_acc={train_correct:.4f},test_acc={test_correct:.4f}"
+        )
 
     pred_info = test_info(
         device=device,

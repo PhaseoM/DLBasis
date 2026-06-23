@@ -29,6 +29,7 @@ class Config:
     beta_1: float = 0.9
     beta_2: float = 0.999
     warmup_steps: int = 1000
+    label_smoothing: float = 0.1
     # total_steps: int = 64000
 
     num_layers: int = 12
@@ -38,6 +39,9 @@ class Config:
     img_size: int = 32
     patch_size: int = 4
     num_classes: int = 10
+
+    def __str__(self):
+        return "\n" + "\n".join([f"        {key} = {value} " for key, value in self.__dict__.items()])
 
 
 conf = Config()
