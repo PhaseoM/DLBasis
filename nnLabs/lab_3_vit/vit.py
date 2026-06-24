@@ -1,6 +1,7 @@
 import torch
 from . import attlib
 from torch import nn
+from torchvision.ops import StochasticDepth
 
 
 class AttentionBlock(nn.Module):
@@ -10,6 +11,7 @@ class AttentionBlock(nn.Module):
         d_model=512,
         mlp_hiddens=2048,
         dropout=0,
+        drop_path_rate=0,
         att_score=None,
     ):
         super().__init__()
@@ -31,22 +33,30 @@ class AttentionBlock(nn.Module):
             nn.Linear(in_features=mlp_hiddens, out_features=d_model),
             nn.Dropout(dropout),
         )
+        self.att_drop_path = StochasticDepth(p=drop_path_rate, mode="row")
+        self.mlp_drop_path = StochasticDepth(p=drop_path_rate, mode="row")
 
     def forward(self, X):
-        X = X + self.att_model(X)
-        X = X + self.mlp_model(X)
+        X = X + self.att_drop_path(self.att_model(X))
+        X = X + self.mlp_drop_path(self.mlp_model(X))
         return X
 
 
-def _att_seqs_stack(size_n, num_heads, d_model, mlp_hiddens, dropout):
+def _att_seqs_stack(size_n, num_heads, d_model, mlp_hiddens, dropout, drop_path_rate):
+    drop_path_rates = torch.linspace(
+        0,
+        drop_path_rate,
+        size_n,
+    ).tolist()
     att_seqs = []
-    for _ in range(size_n):
+    for index_layers in range(size_n):
         att_seqs.append(
             AttentionBlock(
                 num_heads=num_heads,
                 d_model=d_model,
                 mlp_hiddens=mlp_hiddens,
                 dropout=dropout,
+                drop_path_rate=drop_path_rates[index_layers],
             )
         )
     return att_seqs
@@ -115,11 +125,12 @@ class VisionTransformer(nn.Module):
         img_size=32,
         patch_size=4,
         dropout=0,
+        drop_path_rate=0.1,
     ):
         super().__init__()
         self.embedding = ImgPatchEmbedding(img_size, patch_size, d_model, dropout)
         self.encoder = nn.Sequential(
-            *_att_seqs_stack(size_n, num_heads, d_model, mlp_hiddens, dropout),
+            *_att_seqs_stack(size_n, num_heads, d_model, mlp_hiddens, dropout, drop_path_rate),
         )
         self.mlp_cls = nn.Sequential(
             nn.LayerNorm(d_model),

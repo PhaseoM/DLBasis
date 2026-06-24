@@ -1,6 +1,6 @@
 [HyperParam]
-epochs = 160
-lr = 0.01
+epochs = 5
+lr = 1e-3
 batch_size = 128
 weight_decay = 0.1
 dropout = 0

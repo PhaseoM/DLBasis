@@ -20,6 +20,8 @@ class Config:
     graph_path: Path = _GRAPH_PATH
 
     seed: int = 3407
+    num_workers: int = 4
+    amp: bool = True
 
     epochs: int = 160
     lr: float = 0.01
@@ -30,6 +32,7 @@ class Config:
     beta_2: float = 0.999
     warmup_steps: int = 1000
     label_smoothing: float = 0.1
+    drop_path_rate: float = 0.1
     # total_steps: int = 64000
 
     num_layers: int = 12

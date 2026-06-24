@@ -9,23 +9,25 @@ from pathlib import Path
 from functools import wraps
 
 
-def seed_everything(seed: int = 42):
+def seed_everything(seed: int = 42, is_deterministic: bool = False):
     import os
     import torch
 
-    # random.seed(seed)
-    np.random.seed(seed)
-
     os.environ["PYTHONHASHSEED"] = str(seed)
 
+    random.seed(seed)
+    np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-
-    torch.use_deterministic_algorithms(True)
+    if is_deterministic:
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = True
+        torch.use_deterministic_algorithms(True)
+    else:
+        torch.backends.cudnn.benchmark = True
+        torch.backends.cudnn.deterministic = False
+        torch.use_deterministic_algorithms(False)
 
 
 class Tee:
@@ -107,16 +109,18 @@ def load_config(conf_var, args=None):
 def store_model_params(model, model_dump_path):
     import torch
 
+    Path(model_dump_path).mkdir(parents=True, exist_ok=True)
     randomtoken = "".join(random.choices("0123456789abcdefABCDEF", k=7))
     modelpath = str(model_dump_path) + f"-{randomtoken}"
-    torch.save(model, modelpath)
+    torch.save(model.state_dict(), modelpath)
 
 
 @functools.lru_cache()
-def create_logger(output_dir, dist_rank=1, name=""):
+def create_logger(output_dir, dist_rank=0, name="log"):
     import logging
     from termcolor import colored
 
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
     # create logger
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
@@ -131,15 +135,15 @@ def create_logger(output_dir, dist_rank=1, name=""):
     )
 
     # create console handlers for master process
-    if dist_rank == 0:
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.DEBUG)
-        console_handler.setFormatter(logging.Formatter(fmt=color_fmt, datefmt="%Y-%m-%d %H:%M:%S"))
-        logger.addHandler(console_handler)
+    # if dist_rank == 0:
+    #     console_handler = logging.StreamHandler(sys.stdout)
+    #     console_handler.setLevel(logging.DEBUG)
+    #     console_handler.setFormatter(logging.Formatter(fmt=color_fmt, datefmt="%Y-%m-%d %H:%M:%S"))
+    #     logger.addHandler(console_handler)
 
     # create file handlers
     # file_handler = logging.FileHandler(os.path.join(output_dir, f"log_rank{dist_rank}.txt"), mode="a")
-    file_handler = logging.FileHandler(os.path.join(output_dir, f"{name}.txt"), mode="w")
+    file_handler = logging.FileHandler(os.path.join(output_dir, f"{name}_rank_{dist_rank}.txt"), mode="a")
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(logging.Formatter(fmt=fmt, datefmt="%Y-%m-%d %H:%M:%S"))
     logger.addHandler(file_handler)

@@ -39,7 +39,7 @@ def run():
         fig_arr.append(
             loss_eval(train_acc_lists, test_acc_lists, "ViT Accuracy-" + str(file_name), labels=labels, ylabel="acc")
         )
-
+    Path(conf.graph_path).mkdir(parents=True, exist_ok=True)
     for fig in fig_arr:
         title = fig.gca().get_title()
         fig.savefig(

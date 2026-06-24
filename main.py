@@ -5,4 +5,4 @@ from nnLabs import lab1, lab2, lab3
 if __name__ == "__main__":
     lab3.vit_normal.run()
     # lab3.vit_adamw.run()
-    lab3.data_process.run()
+    # lab3.data_process.run()
