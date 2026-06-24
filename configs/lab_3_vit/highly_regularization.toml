@@ -1,13 +1,13 @@
 [HyperParam]
-epochs = 400
+epochs = 1000
 lr = 8e-4
 batch_size = 192
-weight_decay = 5e-2
+weight_decay = 0.1
 dropout = 0.1
 beta_1 = 0.9
 beta_2 = 0.999
 warmup_steps = 1000
-label_smoothing = 0
+label_smoothing = 0.1
 
 
 num_layers = 12
