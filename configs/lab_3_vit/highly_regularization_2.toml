@@ -1,0 +1,19 @@
+[HyperParam]
+epochs = 1000
+lr = 8e-4
+batch_size = 192
+weight_decay = 0.3
+dropout = 0.2
+beta_1 = 0.9
+beta_2 = 0.999
+warmup_steps = 1000
+label_smoothing = 0.1
+drop_path_rate = 0.1
+
+num_layers = 12
+d_model = 768
+num_heads = 12
+mlp_hiddens = 3072
+img_size = 32
+patch_size = 4
+num_classes = 10
