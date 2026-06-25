@@ -8,7 +8,7 @@ beta_1 = 0.9
 beta_2 = 0.999
 warmup_steps = 100
 
-num_layers = 1
+num_layers = 3
 d_model = 512 
 num_heads = 8
 mlp_hiddens = 2048

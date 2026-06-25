@@ -24,12 +24,13 @@ class Config:
     epochs: int = 160
     lr: float = 0.01
     batch_size: int = 128
+    momentum: float = 0.9
     weight_decay: float = 0.1
     dropout: float = 0
     beta_1: float = 0.9
     beta_2: float = 0.999
     warmup_steps: int = 1000
-    label_smoothing: float = 0.1
+    label_smoothing: float = 0
     # total_steps: int = 64000
 
     num_layers: int = 12

@@ -12,6 +12,7 @@ from . import vit
 from . import config
 from . import lr_scheduler
 from . import dataset_load
+from torchvision.models import vit_b_16, ViT_B_16_Weights, vit_b_32, ViT_B_32_Weights
 
 
 def train(
@@ -36,6 +37,10 @@ def train(
         correct += (pred == y).sum().item()
 
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(
+            model.parameters(),
+            max_norm=1.0,
+        )
         optimizer.step()
         optimizer.zero_grad()
 
@@ -96,29 +101,23 @@ def run():
     logger = unis.create_logger(conf.log_path, name=file_stem)
     device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
     unis.seed_everything(conf.seed)
-    train_dataloader, test_dataloader = dataset_load.load_cifar10_large(conf.batch_size, conf.img_size)
-    model = vit.VisionTransformer(
-        size_n=conf.num_layers,
-        d_model=conf.d_model,
-        num_heads=conf.num_heads,
-        num_classes=conf.num_classes,
-        mlp_hiddens=conf.mlp_hiddens,
-        img_size=conf.img_size,
-        patch_size=conf.patch_size,
-        dropout=conf.dropout,
-    ).to(device)
-    optimizer = torch.optim.Adam(
-        model.parameters(),
-        lr=conf.lr,
-        betas=(conf.beta_1, conf.beta_2),
-        weight_decay=conf.weight_decay,
-    )
+    train_dataloader, test_dataloader = dataset_load.load_cifar10_fine_tuning(conf.batch_size, conf.img_size)
+
+    # weights = ViT_B_16_Weights.DEFAULT
+    # model = vit_b_16(weights=weights)
+    weights = ViT_B_32_Weights.DEFAULT
+    model = vit_b_32(weights=weights)
+    model.heads.head = nn.Linear(model.hidden_dim, conf.num_classes)
+    nn.init.zeros_(model.heads.head.weight)
+    nn.init.zeros_(model.heads.head.bias)
+    model = model.to(device)
+    optimizer = torch.optim.SGD(model.parameters(), lr=conf.lr, momentum=conf.momentum)
     total_steps = conf.epochs * len(train_dataloader)
     scheduler = torch.optim.lr_scheduler.LambdaLR(
         optimizer=optimizer,
         lr_lambda=lr_scheduler.warmup_cosine_decay(conf.warmup_steps, total_steps),
     )
-    loss_fn_train = nn.CrossEntropyLoss(label_smoothing=conf.label_smoothing)
+    loss_fn_train = nn.CrossEntropyLoss()
     loss_fn_test = nn.CrossEntropyLoss()
 
     train_loss_list = []

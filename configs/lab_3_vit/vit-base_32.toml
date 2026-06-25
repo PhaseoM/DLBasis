@@ -12,6 +12,6 @@
   d_model = 768
   num_heads = 12
   mlp_hiddens = 3072
-  img_size = 384
-  patch_size = 16
+  img_size = 224
+  patch_size = 32
   num_classes = 10
